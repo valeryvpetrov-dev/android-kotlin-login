@@ -61,15 +61,25 @@ class MainFragment : Fragment() {
         observeAuthenticationState()
 
         binding.authButton.setOnClickListener {
-            // TODO call launchSignInFlow when authButton is clicked
+            launchSignInFlow()
         }
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        // TODO Listen to the result of the sign in process by filter for when
-        //  SIGN_IN_REQUEST_CODE is passed back. Start by having log statements to know
-        //  whether the user has signed in successfully
+        if (requestCode == SIGN_IN_RESULT_CODE) {
+            val response = IdpResponse.fromResultIntent(data)
+            if (resultCode == Activity.RESULT_OK) {
+                // user successfully signed in
+                val signedUser = FirebaseAuth.getInstance().currentUser
+                Log.i(TAG, "Successfully signed in user ${signedUser?.displayName}!")
+            } else {
+                // user did not sign in
+                response?.let { // response is not null when user did not cancel sign-in activity
+                    Log.i(TAG, "Successfully signed in user ${response.error?.errorCode}!")
+                }
+            }
+        }
     }
 
     /**
@@ -104,7 +114,17 @@ class MainFragment : Fragment() {
     }
 
     private fun launchSignInFlow() {
-        // TODO Complete this function by allowing users to register and sign in with
-        //  either their email address or Google account.
+        // give users the option to sign in / register with their email or Google account
+        val providers = arrayListOf(
+            AuthUI.IdpConfig.EmailBuilder().build(),    // user will need to create a password
+            AuthUI.IdpConfig.GoogleBuilder().build()
+        )
+        startActivityForResult(
+            AuthUI.getInstance()
+                .createSignInIntentBuilder()
+                .setAvailableProviders(providers)
+                .build(),
+            SIGN_IN_RESULT_CODE
+        )
     }
 }
