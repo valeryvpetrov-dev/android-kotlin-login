@@ -49,10 +49,6 @@ class MainFragment : Fragment() {
     ): View? {
         binding = DataBindingUtil.inflate(inflater, R.layout.fragment_main, container, false)
 
-        // TODO Remove the two lines below once observeAuthenticationState is implemented.
-        binding.welcomeText.text = viewModel.getFactToDisplay(requireContext())
-        binding.authButton.text = getString(R.string.login_btn)
-
         return binding.root
     }
 
@@ -60,7 +56,12 @@ class MainFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         observeAuthenticationState()
 
-        binding.authButton.setOnClickListener { launchSignInFlow() }
+        binding.authButton.setOnClickListener {
+            launchSignInFlow()
+        }
+        binding.settingsButton.setOnClickListener {
+            findNavController().navigate(R.id.action_mainFragment_to_settingsFragment)
+        }
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -68,16 +69,14 @@ class MainFragment : Fragment() {
         if (requestCode == SIGN_IN_RESULT_CODE) {
             val response = IdpResponse.fromResultIntent(data)
             if (resultCode == Activity.RESULT_OK) {
-                // User successfully signed in
-                Log.i(
-                    TAG,
-                    "Successfully signed in user ${FirebaseAuth.getInstance().currentUser?.displayName}!"
-                )
+                // user successfully signed in
+                val signedUser = FirebaseAuth.getInstance().currentUser
+                Log.i(TAG, "Successfully signed in user ${signedUser?.displayName}!")
             } else {
-                // Sign in failed. If response is null the user canceled the
-                // sign-in flow using the back button. Otherwise check
-                // response.getError().getErrorCode() and handle the error.
-                Log.i(TAG, "Sign in unsuccessful ${response?.error?.errorCode}")
+                // user did not sign in
+                response?.let { // response is not null when user did not cancel sign-in activity
+                    Log.i(TAG, "Successfully signed in user ${response.error?.errorCode}!")
+                }
             }
         }
     }
@@ -93,20 +92,16 @@ class MainFragment : Fragment() {
         viewModel.authenticationState.observe(viewLifecycleOwner, Observer { authenticationState ->
             when (authenticationState) {
                 LoginViewModel.AuthenticationState.AUTHENTICATED -> {
-                    binding.welcomeText.text = getFactWithPersonalization(factToDisplay)
-
                     binding.authButton.text = getString(R.string.logout_button_text)
+                    binding.welcomeText.text = getFactWithPersonalization(factToDisplay)
                     binding.authButton.setOnClickListener {
                         AuthUI.getInstance().signOut(requireContext())
                     }
                 }
                 else -> {
-                    binding.welcomeText.text = factToDisplay
-
                     binding.authButton.text = getString(R.string.login_button_text)
-                    binding.authButton.setOnClickListener {
-                        launchSignInFlow()
-                    }
+                    binding.welcomeText.text = factToDisplay
+                    binding.authButton.setOnClickListener { launchSignInFlow() }
                 }
             }
         })
@@ -124,21 +119,17 @@ class MainFragment : Fragment() {
     }
 
     private fun launchSignInFlow() {
-        // Give users the option to sign in / register with their email
-        // If users choose to register with their email,
-        // they will need to create a password as well
+        // give users the option to sign in / register with their email or Google account
         val providers = arrayListOf(
-            AuthUI.IdpConfig.EmailBuilder().build()
-            //
+            AuthUI.IdpConfig.EmailBuilder().build(),    // user will need to create a password
+            AuthUI.IdpConfig.GoogleBuilder().build()
         )
-
-        // Create and launch sign-in intent.
-        // We listen to the response of this activity with the
-        // SIGN_IN_RESULT_CODE code
         startActivityForResult(
-            AuthUI.getInstance().createSignInIntentBuilder().setAvailableProviders(
-                    providers
-                ).build(), MainFragment.SIGN_IN_RESULT_CODE
+            AuthUI.getInstance()
+                .createSignInIntentBuilder()
+                .setAvailableProviders(providers)
+                .build(),
+            SIGN_IN_RESULT_CODE
         )
     }
 }

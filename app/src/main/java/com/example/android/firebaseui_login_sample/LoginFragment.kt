@@ -66,6 +66,22 @@ class LoginFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         navController = findNavController()
+
+        // if the user presses the back button, bring them back to the home screen
+        requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner) {
+            navController.popBackStack(R.id.mainFragment, false)
+        }
+
+        viewModel.authenticationState.observe(viewLifecycleOwner, Observer {
+            when (it) {
+                LoginViewModel.AuthenticationState.AUTHENTICATED -> {
+                    navController.popBackStack()    // to previously opened screen (Settings in out case)
+                }
+                else -> {
+                    Log.e(TAG, "Authentication state that doesn't require any UI change $it")
+                }
+            }
+        })
     }
 
     private fun launchSignInFlow() {
